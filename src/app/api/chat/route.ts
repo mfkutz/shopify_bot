@@ -2,6 +2,24 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
+// Rate limiting simple en memoria
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 10; // máximo 10 mensajes
+const RATE_WINDOW = 60 * 1000; // por minuto
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
+    return false;
+  }
+
+  entry.count++;
+  return entry.count > RATE_LIMIT;
+}
+
 const anthropic = new Anthropic();
 const openai = new OpenAI();
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!);
@@ -77,6 +95,14 @@ const tools: Anthropic.Messages.Tool[] = [
 ];
 
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
+
+  if (isRateLimited(ip)) {
+    return new Response("Too many requests. Please wait a moment.", {
+      status: 429,
+    });
+  }
+
   const { messages } = await req.json();
   const lastUserMessage = messages[messages.length - 1].content;
 
