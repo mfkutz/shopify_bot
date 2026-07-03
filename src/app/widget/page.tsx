@@ -54,7 +54,14 @@ export default function Widget() {
 
   if (!isOpen) {
     return (
-      <div style={{ position: "fixed", bottom: 20, right: 20 }}>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 20,
+          right: 20,
+          background: "transparent",
+        }}
+      >
         <button
           onClick={() => setIsOpen(true)}
           style={{
